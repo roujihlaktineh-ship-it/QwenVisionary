@@ -7,18 +7,31 @@ import io
 import base64
 import requests
 
-# Load HF_TOKEN from .env
-env_file = Path(__file__).parent / ".env"
-if env_file.exists():
-    with open(env_file, 'r', encoding='utf-8-sig') as f:
-        for line in f:
-            line = line.strip()
-            if line and '=' in line:
-                key, value = line.split('=', 1)
-                os.environ[key.strip()] = value.strip()
+# Load HF_TOKEN from Streamlit secrets or .env (for local development)
+def get_hf_token():
+    """Get HF_TOKEN from Streamlit secrets (production) or .env (local)"""
+    try:
+        # Try to get from Streamlit secrets (Streamlit Community Cloud)
+        return st.secrets["HF_TOKEN"]
+    except (KeyError, FileNotFoundError):
+        # Fall back to .env for local development
+        env_file = Path(__file__).parent / ".env"
+        if env_file.exists():
+            with open(env_file, 'r', encoding='utf-8-sig') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and '=' in line and line.startswith("HF_TOKEN"):
+                        key, value = line.split('=', 1)
+                        return value.strip()
+        return None
+
+hf_token = get_hf_token()
+if not hf_token:
+    st.error("❌ HF_TOKEN not found! Please add it to Streamlit secrets or .env file")
+    st.info("📖 To add secrets: Go to Settings → Secrets in Streamlit App menu")
+    st.stop()
 
 # Initialize Hugging Face client
-hf_token = os.environ.get("HF_TOKEN")
 client = InferenceClient(api_key=hf_token)
 
 # Page config
